@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="../assets/css/style.css" rel="stylesheet">
+    <style>
+        .profile-header {
+            background: var(--gradient-1);
+            border-radius: 20px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.3);
+            margin-bottom: 1rem;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stats-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: var(--gradient-2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .achievement-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .achievement-icon {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        .notes-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .note-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <!-- Profile Header -->
+        <div class="profile-header text-center">
+            <img src="" alt="Profile" id="userAvatar" class="profile-avatar">
+            <h2 id="userName">John Doe</h2>
+            <p class="mb-2">Task Management Expert</p>
+            <div class="d-flex justify-content-center gap-3">
+                <span><i class="fas fa-star me-2"></i>Level 5</span>
+                <span><i class="fas fa-trophy me-2"></i>10 Achievements</span>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <i class="fas fa-star stats-icon"></i>
+                    <h5>Task Master</h5>
+                    <p id="totalTasksCompleted">0 Tasks Completed</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <i class="fas fa-bolt stats-icon"></i>
+                    <h5>Productivity Score</h5>
+                    <p id="productivityScore">0 Points</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <i class="fas fa-clock stats-icon"></i>
+                    <h5>Time Saved</h5>
+                    <p id="timeSaved">0 Hours</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Notes Section -->
+        <div class="notes-section">
+            <h4><i class="far fa-sticky-note me-2"></i>Quick Notes</h4>
+            <div class="notes-container">
+                <textarea id="quickNote" placeholder="Write a quick note..."></textarea>
+                <div class="notes-actions">
+                    <button onclick="saveNote()" class="btn-save">
+                        <i class="fas fa-save me-1"></i> Save
+                    </button>
+                    <button onclick="clearNote()" class="btn-clear">
+                        <i class="fas fa-eraser me-1"></i> Clear
+                    </button>
+                </div>
+                <div id="savedNotes" class="saved-notes">
+                    <!-- Saved notes will appear here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Add this after the achievements section -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Task Analytics</h5>
+                        <canvas id="taskAnalyticsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Productivity Timeline</h5>
+                        <canvas id="productivityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+        async function loadTaskStats(token) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/tasks/statistics/`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update achievements
+                    document.getElementById('totalTasksCompleted').textContent = 
+                        `${data.completed || 0} Tasks Completed`;
+                    
+                    // Calculate productivity score
+                    const productivityScore = ((data.completed || 0) * 10) + 
+                                           ((data.in_progress || 0) * 5);
+                    document.getElementById('productivityScore').textContent = 
+                        `${productivityScore} Points`;
+                    
+                    // Calculate time saved (example calculation)
+                    const timeSaved = Math.round((data.completed || 0) * 1.5);
+                    document.getElementById('timeSaved').textContent = 
+                        `${timeSaved} Hours`;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Notes functionality
+        function saveNote() {
+            const noteText = document.getElementById('quickNote').value.trim();
+            if (!noteText) return;
+
+            const notes = JSON.parse(localStorage.getItem('userNotes') || '[]');
+            notes.unshift({
+                text: noteText,
+                date: new Date().toLocaleDateString()
+            });
+            localStorage.setItem('userNotes', JSON.stringify(notes));
+            
+            document.getElementById('quickNote').value = '';
+            displayNotes();
+        }
+
+        function clearNote() {
+            document.getElementById('quickNote').value = '';
+        }
+
+        function deleteNote(index) {
+            const notes = JSON.parse(localStorage.getItem('userNotes') || '[]');
+            notes.splice(index, 1);
+            localStorage.setItem('userNotes', JSON.stringify(notes));
+            displayNotes();
+        }
+
+        function displayNotes() {
+            const notesContainer = document.getElementById('savedNotes');
+            const notes = JSON.parse(localStorage.getItem('userNotes') || '[]');
+            
+            notesContainer.innerHTML = notes.map((note, index) => `
+                <div class="note-item">
+                    <div>
+                        <small>${note.date}</small>
+                        <p class="mb-0">${note.text}</p>
+                    </div>
+                    <button onclick="deleteNote(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && user.token) {
+                // Set user info
+                document.getElementById('userName').textContent = user.user.username;
+                document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user.username)}&background=random`;
+                
+                await loadTaskStats(user.token);
+                displayNotes();
+            }
+        });
+    </script>
+</body>
+</html> 
